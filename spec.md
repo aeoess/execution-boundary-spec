@@ -160,6 +160,74 @@ Reference test vectors: APS `interop/fixtures/` (happy-path, revoked-ancestor, s
 
 ---
 
+## 5. Mutation-Bound Enforcement
+
+Sections 1-3 establish **transmission integrity**: the request reaching the execution boundary is the request that was authorized, unmodified. Section 4 (Strong tier) establishes **execution integrity**: the tool executes exactly what was authorized, with bilateral receipts proving it. This section defines a third property: **mutation integrity**.
+
+### Definition
+
+**Mutation integrity** holds when the actual irreversible state change is governed by the same admissibility predicate that authorized the action. The irreversible primitive is the point of no return: the database commit, the blockchain transaction, the webhook dispatch, the email send. Mutation integrity requires that the admissibility condition is live and enforceable at that primitive, not merely at the execution boundary that initiated it.
+
+### 5.0 Three Integrity Properties
+
+1. **Transmission integrity** (§1-3): The request is not modified after authorization. The signed request, live-state re-derivation, and anti-interleaving invariants guarantee that what arrives at the execution boundary is what was authorized.
+
+2. **Execution integrity** (§4 Strong tier): The tool executes exactly what was authorized. Bilateral receipts (permit + outcome) linked by `action_ref` prove the execution matched the authorization.
+
+3. **Mutation integrity** (this section): The actual irreversible state change is governed by the same admissibility predicate. This is the new contribution. Execution integrity proves the tool was called correctly; mutation integrity proves the downstream irreversible effect was also governed.
+
+### 5.0.1 Normative Requirements
+
+The system MUST identify the **true irreversible primitive** for each governed action. The irreversible primitive is the operation after which rollback is impossible or prohibitively expensive: the committed transaction, the signed broadcast, the external API call with side effects.
+
+If the irreversible primitive is **downstream** of the execution boundary (async processing, external systems, multi-stage commits, queue consumers, scheduled jobs), the admissibility condition MUST survive as a **live refusal condition** at each mutation-capable boundary until the irreversible primitive is reached. A cached or token-based authorization that was valid at the execution boundary but is not re-evaluated at the mutation boundary violates mutation integrity.
+
+Systems where the proxy enforces intent but the downstream mutation is unattested operate at **Bounded tier for mutation integrity** regardless of their execution integrity tier. This is the mutation authority gap: Strong execution integrity with unattested downstream mutations produces a system that is Strong at the gate but Bounded (or worse) at the point that matters.
+
+### 5.1 Settlement Proof
+
+For mutations that produce cryptographic confirmation, the governance system can close the mutation integrity gap by verifying that the mutation matched the authorization.
+
+**Settlement proof** is a cryptographic artifact produced by the mutation target that can be independently verified against the authorization envelope. Examples:
+
+- **Blockchain transactions:** The transaction hash and on-chain state change can be verified against the authorized parameters (recipient, amount, contract call). The chain itself is the witness.
+- **Signed webhooks:** An external system returns a signed receipt of the mutation (e.g., a payment processor's signed confirmation). The signature proves the external system executed the specific mutation.
+- **Content-addressed storage:** Writing to IPFS or similar systems produces a CID that can be verified against the authorized content hash.
+
+**Normative:** When a settlement proof is available, the governance system SHOULD capture it and link it to the original authorization envelope via `action_ref`. A system that captures settlement proofs and verifies them against the authorization achieves **Strong mutation integrity** even when the irreversible primitive is downstream of the execution boundary.
+
+The settlement proof MUST contain or reference: (a) the `action_ref` linking it to the authorization, (b) a cryptographic commitment from the mutation target (transaction hash, signed receipt, CID), and (c) sufficient detail to verify the mutation parameters matched the authorized parameters.
+
+### 5.2 Mutation Authority Gap
+
+For mutations in systems without cryptographic proof, mutation integrity is an **open problem**.
+
+Many real-world irreversible primitives produce no cryptographic confirmation: database writes behind an API, email delivery, SMS sends, SaaS API calls that return only a 200 OK, internal microservice RPCs. In these systems, the execution boundary can prove it sent the correct request, but cannot prove the downstream system executed the correct mutation. The mutation is unattested.
+
+**The gap:** The execution boundary holds Strong integrity. The mutation target provides no settlement proof. The system has no way to verify that what was authorized is what actually mutated. This is the **mutation authority gap**.
+
+**Normative:** Systems MUST declare whether their governed actions have attested or unattested mutations. The declaration MUST be per-action, not per-system, because different tools may have different mutation targets.
+
+**BBIS scoring (per #817):** The Boundary-Bounded Integrity Score classifies systems along two axes: execution integrity tier (Strong/Bounded/Detectable) and mutation attestation (Attested/Unattested). The matrix:
+
+| | Mutation Attested | Mutation Unattested |
+|---|---|---|
+| **Execution Strong** | Full integrity | Mutation authority gap |
+| **Execution Bounded** | Bounded + settlement | Bounded integrity |
+| **Execution Detectable** | Detectable + settlement | Minimal integrity |
+
+Systems in the "Mutation authority gap" cell (Strong execution, unattested mutation) are the most deceptive: they appear fully governed but the actual irreversible effect is unverified. Implementations MUST NOT claim full Strong tier without addressing mutation attestation.
+
+**Open questions:**
+
+1. Can trusted execution environments (TEEs) close the gap for non-cryptographic mutation targets?
+2. Can observability-based approaches (distributed tracing with signed spans) provide probabilistic mutation attestation?
+3. Should the spec define a "Mutation Bounded" tier for systems that enforce at the execution boundary but acknowledge unattested downstream mutations?
+
+These questions are deferred to future revisions. The contribution of this section is naming the gap and requiring its disclosure.
+
+---
+
 ## Appendix A: Reference Implementations
 
 ### A.1 Agent Passport System (APS)
