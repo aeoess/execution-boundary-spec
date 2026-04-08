@@ -460,3 +460,23 @@ Tampering with any field in the execution envelope breaks the signature.
 - [MITRE ATLAS](https://atlas.mitre.org/) - Adversarial Threat Landscape for AI Systems
 - Pidlisnyi, T. "The Agent Social Contract" (2026). Zenodo DOI: 10.5281/zenodo.18749779
 - Pidlisnyi, T. "Faceted Authority Attenuation" (2026). Zenodo DOI: 10.5281/zenodo.19260073
+
+### External Test Vectors: asqav-mcp (ML-DSA-65)
+
+9 test vectors contributed by [@jagmarques](https://github.com/jagmarques) from the asqav-mcp implementation, covering all three enforceability tiers with real ML-DSA-65 (post-quantum) signatures.
+
+Repository: [jagmarques/execution-boundary-test-vectors](https://github.com/jagmarques/execution-boundary-test-vectors)
+
+| Vector ID | Tier | Description | Validated |
+|-----------|------|-------------|-----------|
+| strong-bilateral-receipt | Strong | Permit + outcome linked by action_ref | APS ✓, asqav ✓ |
+| strong-three-sig-proof-chain | Strong | Intent + permit + outcome, 3 ML-DSA-65 sigs | APS ✓, asqav ✓ |
+| strong-incomplete-proof-chain | Strong | Missing outcome — correctly fails §4.4 gating rule | APS ✓, asqav ✓ |
+| bounded-gate-permit | Bounded | Gate permit with ML-DSA-65 signature | APS ✓, asqav ✓ |
+| bounded-gate-deny | Bounded | Gate denial (denials are attested) | APS ✓, asqav ✓ |
+| bounded-missing-gate | Bounded | No gate signature — bypass detectable | APS ✓, asqav ✓ |
+| detectable-basic-sign | Detectable | Signed action record | APS ✓, asqav ✓ |
+| detectable-chain-link | Detectable | Chain-linked record with previous_signature_hash | APS ✓, asqav ✓ |
+| detectable-tamper-detection | Detectable | Tampered record — no valid signature | APS ✓, asqav ✓ |
+
+All 10 signature IDs independently verifiable at `https://api.asqav.com/api/v1/verify/{signature_id}`.
