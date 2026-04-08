@@ -102,27 +102,88 @@ See [Appendix B, Vectors 3.1-3.3](#appendix-b-test-vectors).
 
 ## 4. Enforceability Classification
 
-> **Placeholder:** This section will be authored by QueBallSharken.
+### 4.1 Strong Tier
 
-Three tiers:
-- **Strong:** Mutation authority co-located with evaluator (atomic path)
-- **Bounded:** Version-anchored envelope re-verified at commit
-- **Detectable-only:** Post-hoc behavioral anomaly detection
+**Normative:** The component that evaluates admissibility MUST be the same component that executes the mutation. There is no advisory layer. The evaluator IS the executor.
 
-**Normative:** Implementations MUST declare their enforceability tier.
+**Bilateral receipt requirement:** Both a permit receipt (before execution) AND an outcome receipt (after execution) MUST be signed and linked by `action_ref`. A permit receipt without a bound outcome receipt is incomplete: the execution is unattested. The permit proves intent was authorized; the outcome proves the mutation was observed and recorded. This linkage is the defining property of the Strong tier.
+
+The permit receipt MUST contain: `action_ref`, `verdict`, `scope_evaluated`, `delegation_chain_hash`, `evaluator_signature`. The outcome receipt MUST contain: `action_ref` (matching the permit), `execution_result`, `executor_signature`, `receipt_hash` (content-addressed). Both signatures MUST be produced inside the atomic execution boundary.
+
+**Reference implementations:**
+- APS `ProxyGateway`: `evaluateAction` produces the permit receipt (intent + decision signatures), `completeAction` produces the outcome receipt (receipt signature). The 3-signature proof chain (request, decision, receipt) satisfies bilateral receipt linking via shared `requestId`.
+- asqav-mcp `enforced_tool_call`: tool proxy with ML-DSA-65 post-quantum signatures. The enforced call produces both pre-execution gate signature and post-execution attestation in a single atomic boundary.
+
+### 4.2 Bounded Tier
+
+**Normative:** The authorization envelope MUST be version-anchored and re-verified at commit time. A pre-execution gate produces a signed receipt. Skipping the gate is detectable because missing gate signatures create verifiable anomalies in the receipt chain.
+
+The gate receipt MUST contain: `action_ref`, `policy_version_hash`, `scope_checked`, `gate_signature`. Downstream verification MUST reject any action that lacks a corresponding gate receipt. The gate does not execute the action; it certifies that policy was evaluated. Execution happens in a separate component, but the gate receipt creates an auditable coupling.
+
+**Reference implementations:**
+- APS execution envelope: bundles intent, decision, receipt, and delegation reference into a single signed artifact. The envelope is signed by the gateway, and any modification to the envelope invalidates the signature.
+- asqav-mcp `gate_action`: pre-execution policy gate that signs the authorization decision. The gate signature is required for downstream processing.
+
+### 4.3 Detectable-only Tier
+
+**Normative:** Post-hoc behavioral anomaly detection via hash-chained signed records. Each action produces a signed record appended to a chain. Breaking or omitting any entry fails chain verification. The system cannot prevent unauthorized mutations, but it can detect them after the fact with cryptographic certainty.
+
+The chain MUST be append-only. Each record MUST include `previous_record_hash`. Verification MUST check: (a) no gaps in the chain, (b) each record's signature is valid, (c) `previous_record_hash` matches the prior record's content hash. A missing or tampered record breaks the chain, alerting the auditor.
+
+**Reference implementations:**
+- APS receipt ledger: Merkle-committed batches of evaluation receipts. Receipt window seals provide periodic integrity checkpoints with gateway signatures.
+- asqav-mcp `sign_action`: produces signed action records that can be independently verified. Chain integrity is maintained via `previousReceiptHash` linking.
+
+### 4.4 Gating Rule
+
+A system MUST NOT claim Strong tier if it lacks bilateral receipts (permit + outcome linked by `action_ref`). A system with only permit receipts operates at Bounded tier at best.
+
+A system MUST NOT claim Bounded tier if the pre-execution gate can be bypassed without detection. If an action can execute without producing a gate receipt and no downstream verification catches the omission, the system operates at Detectable-only tier.
+
+A system MUST NOT claim Detectable-only tier if the record chain has no integrity verification. Unsigned or unchained records provide no cryptographic detection capability.
+
+### 4.5 Test Vector Structure
+
+Each enforceability tier SHOULD have test vectors demonstrating correct classification. A test vector MUST contain:
+
+- **Input context:** delegation state, scope requested, agent identity
+- **Expected decision:** permit or deny, with reason
+- **Expected receipt structure:** which signatures are present, which `action_ref` links exist, chain integrity properties
+
+Test vectors for the Strong tier MUST include both the permit receipt and the outcome receipt, demonstrating the bilateral linkage.
+
+Reference test vectors: APS `interop/fixtures/` (happy-path, revoked-ancestor, stale-replay, cross-algo-mismatch). Additional vectors from asqav-mcp will be contributed as the ML-DSA-65 implementation matures.
+
+### 4.6 Tier Declaration
+
+**Normative:** Implementations MUST declare their enforceability tier. The declaration MUST be machine-readable and SHOULD be included in the system's governance metadata (e.g., `aps.txt`, agent card, or MCP server capabilities).
 
 ---
 
-## Appendix A: Reference Implementation
+## Appendix A: Reference Implementations
 
-The Agent Passport System (APS) SDK provides a reference implementation of all four invariants.
+### A.1 Agent Passport System (APS)
 
-- **ProxyGateway:** `src/core/gateway.ts` - atomic execution boundary with 15 constraint facets
+The APS SDK provides a reference implementation of all four invariants and demonstrates Strong tier enforceability.
+
+- **ProxyGateway:** `src/core/gateway.ts` - atomic execution boundary with 15 constraint facets. Bilateral receipts: 3-signature proof chain (request, decision, receipt) linked by `requestId`.
 - **Constraint Architecture:** `src/types/gateway.ts` - `ConstraintFacet`, `ConstraintVector`, `AuthorizationWitness`
 - **Execution Envelope:** `src/core/execution-envelope.ts` - signed atomic bundle
+- **Receipt Ledger:** `src/core/receipt-ledger.ts` - Merkle-committed receipt batches (Detectable-only tier demonstration)
+- **Interop Fixtures:** `interop/fixtures/` - happy-path, revoked-ancestor, stale-replay, cross-algo-mismatch
 - **Test Suite:** `tests/gateway.test.ts`, `tests/gateway-constraints.test.ts`, `tests/transactional-integrity.test.ts`, `tests/execution-envelope.test.ts`
 
-Published as `agent-passport-system` on npm.
+Published as `agent-passport-system` on [npm](https://www.npmjs.com/package/agent-passport-system).
+
+### A.2 asqav-mcp
+
+The asqav-mcp server provides a second reference implementation using ML-DSA-65 (post-quantum) signatures.
+
+- **enforced_tool_call:** Strong tier - tool proxy with bilateral ML-DSA-65 signatures (pre + post execution)
+- **gate_action:** Bounded tier - pre-execution policy gate with signed authorization decision
+- **sign_action:** Detectable-only tier - signed action records with chain linking
+
+Published as `asqav-mcp` (repository: [asqav-mcp](https://github.com/QueBallSharken/asqav-mcp)).
 
 ---
 
