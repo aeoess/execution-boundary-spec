@@ -183,7 +183,7 @@ The asqav-mcp server provides a second reference implementation using ML-DSA-65 
 - **gate_action:** Bounded tier - pre-execution policy gate with signed authorization decision
 - **sign_action:** Detectable-only tier - signed action records with chain linking
 
-Published as `asqav-mcp` (repository: [asqav-mcp](https://github.com/QueBallSharken/asqav-mcp)).
+Published as `asqav-mcp` (repository: [asqav-mcp](https://github.com/jagmarques/asqav-mcp)).
 
 ---
 
