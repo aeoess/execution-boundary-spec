@@ -162,7 +162,7 @@ Reference test vectors: APS `interop/fixtures/` (happy-path, revoked-ancestor, s
 
 ### 4.7 asqav-mcp Tier Mapping
 
-asqav-mcp exposes three governance controls that line up with the three tiers in §4.1-4.3. The tier a control reaches is a property of its enforcement topology, not of its signature suite. asqav-mcp signs with ML-DSA-65 (FIPS 204), and the mapping below holds the same way for an Ed25519 implementation. Each control is taken from the deployed `asqav-mcp` server.
+asqav-mcp exposes three governance controls that line up with the three tiers in §4.1-4.3. The tier a control reaches is a property of its enforcement topology, not of its signature suite. asqav-mcp signs with ML-DSA-65 (FIPS 204), and the mapping below holds the same way for an Ed25519 implementation. Each control is taken from the deployed `asqav-mcp` server. Verified against asqav-mcp at commit 0228f7ba (2026-06-17), a snapshot of the implementer's tool surface, not a standing tier assignment.
 
 | Spec tier | asqav-mcp control | Enforcement topology | Receipt structure |
 |-----------|-------------------|----------------------|-------------------|
