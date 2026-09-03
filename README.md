@@ -1,3 +1,5 @@
+> Archived 2026-09-02. Draft 0.1 with sections never completed. The execution-boundary work continued inside the APS specification.
+
 # Execution Boundary Specification
 
 Normative requirements for execution boundaries in agent orchestration systems. Defines four invariants that prevent exploitable gaps between policy intent and mutation outcome.
